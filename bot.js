@@ -23,33 +23,32 @@ var bot = new Discord.Client({
 });
 
 bot.on('ready', function () {
-    bot.setStatus('online', process.env.GAME || '3v.fi/l/blogbot');
     checkBlogs();
 });
 
 bot.on('message', function (message) {
     // Allow only users with permission to manage the channel to interact with the bot.
-    if (message.channel.permissionsOf(message.author).hasPermission('manageChannel')) {
+    if (message.channel.permissionsFor(message.author).has('MANAGE_CHANNELS')) {
         var words = message.cleanContent.match(/(?:[^\s"]+|"[^"]*")+/g);
         if (words[0].startsWith(commandPrefix)) {
             var command = words[0].substring(commandPrefix.length);
             words.shift();
             switch (command) {
                 case 'help':
-                    bot.reply(message, "**COMMAND PREFIX**: " + commandPrefix + "\r\n**COMMANDS**: addfeed <url>, removefeed <url>, listfeeds", { tts: false }, function (err) { if (err) errHandler(err) });
+                    message.reply("**COMMAND PREFIX**: " + commandPrefix + "\r\n**COMMANDS**: addfeed <url>, removefeed <url>, listfeeds", { tts: false }, function (err) { if (err) errHandler(err) });
                     break;
                 case 'addfeed':
                     if (/^https?:\/\/[^\s]+\/?$/.test(words[0])) {
                         db.run("INSERT INTO lookups (channel, url) VALUES (?, ?)", [message.channel.id, words[0].toLowerCase()], function (err) {
                             if (err) {
                                 errHandler(err);
-                                bot.reply(message, "failed to insert requested URL to the database", { tts: false }, function (err) { if (err) errHandler(err) });
+                                message.reply("failed to insert requested URL to the database", { tts: false }, function (err) { if (err) errHandler(err) });
                             } else {
-                                bot.reply(message, "added", { tts: false }, function (err) { if (err) errHandler(err) });
+                                message.reply("added", { tts: false }, function (err) { if (err) errHandler(err) });
                             }
                         });
                     } else {
-                        bot.reply(message, "invalid URL", { tts: false }, function (err) { if (err) errHandler(err) });
+                        message.reply("invalid URL", { tts: false }, function (err) { if (err) errHandler(err) });
                     }
                     break;
                 case 'removefeed':
@@ -57,26 +56,26 @@ bot.on('message', function (message) {
                         db.run("DELETE FROM lookups WHERE channel = ? AND url = ?", [message.channel.id, words[0].toLowerCase()], function (err) {
                             if (err) {
                                 errHandler(err);
-                                bot.reply(message, "failed to remove from the DB", { tts: false }, function (err) { if (err) errHandler(err) });
+                                message.reply("failed to remove from the DB", { tts: false }, function (err) { if (err) errHandler(err) });
                             } else {
-                                bot.reply(message, "removed", { tts: false }, function (err) { if (err) errHandler(err) });
+                                message.reply("removed", { tts: false }, function (err) { if (err) errHandler(err) });
                             }
                         });
                     } else {
-                        bot.reply(message, "please specify the feed URL to remove", { tts: false }, function (err) { if (err) errHandler(err) });
+                        message.reply("please specify the feed URL to remove", { tts: false }, function (err) { if (err) errHandler(err) });
                     }
                     break;
                 case 'listfeeds':
                     db.all("SELECT url FROM lookups WHERE channel = ?", [message.channel.id], function (err, rows) {
                         if (err) {
                             errHandler(err);
-                            bot.reply(message, "an error occurred", { tts: false }, function (err) { if (err) errHandler(err) });
+                            message.reply("an error occurred", { tts: false }, function (err) { if (err) errHandler(err) });
                         } else {
                             var urls = [];
                             rows.forEach(function (row) {
                                 urls.push(row.url);
                             });
-                            bot.reply(message, "`" + urls.join(", ") + "`", { tts: false }, function (err) { if (err) errHandler(err) });
+                            message.reply(message.channel.id + ": `" + urls.join(", ") + "`", { tts: false }, function (err) { if (err) errHandler(err) });
                         }
                     });
                     break;
@@ -95,7 +94,7 @@ function errHandler(error) {
 
 bot.on('error', errHandler);
 
-bot.loginWithToken(process.env.TOKEN, function (error) {
+bot.login(process.env.TOKEN).catch(function (error) {
     if (error) {
         console.error("Couldn't login: ", error);
         process.exit(15);
@@ -123,7 +122,7 @@ function requestBlogs(index) {
                 posts.push(row.post);
             });
             console.log("Requesting ", toRequest[index].url);
-            var rss = new FeedParser();
+            var rss = new FeedParser({});
             var req = request(toRequest[index].url);
             req.on('error', errHandler);
             rss.on('error', errHandler);
@@ -138,9 +137,10 @@ function requestBlogs(index) {
                     if (posted === false && item.title && item.link && posts.indexOf(item.link) < 0) {
                         posted = true;
                         db.run("INSERT INTO history (url, post) VALUES (?, ?)", [toRequest[index].url, item.link], function (err) { if (err) errHandler(err); });
-                        toRequest[index].channels.forEach(function (channel) {
-                            console.log("NEW POST", item.link);
-                            bot.sendMessage(channel, "**NEW POST** " + item.title + " " + item.link);
+                        toRequest[index].channels.forEach(function (channelId) {
+                            console.log("NEW THREAD", item.link);
+                            var channel = bot.channels.resolve(channelId);
+                            channel.send("**NEW THREAD** " + item.title + " " + item.link);
                         });
                     }
                 }
@@ -156,11 +156,11 @@ function checkBlogs() {
     if (!isRequesting) {
         var channels = {};
         var url = "";
-        db.each("SELECT * FROM lookups ORDER BY url", function (err, row) {
+        db.each("SELECT channel, url FROM lookups ORDER BY url", function (err, row) {
             if (err) {
                 errHandler(err);
             } else if (row) {
-                if (url != "" && row.url != url) {
+                if (url !== "" && row.url !== url) {
                     toRequest.push({
                         channels: channels[url],
                         url: url
@@ -168,7 +168,7 @@ function checkBlogs() {
                 }
                 url = row.url;
                 channels[url] = [];
-                var channel = bot.channels.get("id", row.channel);
+                var channel = bot.channels.resolve(row.channel);
                 if (channel) {
                     channels[url].push(channel);
                 }
@@ -188,9 +188,8 @@ function checkBlogs() {
 setInterval(checkBlogs, 300000);
 
 function cleanUpAndExit() {
-    bot.logout(function () {
-        process.exit();
-    });
+    bot.destroy();
+    process.exit();
 }
 process.on('SIGINT', cleanUpAndExit);
 process.on('SIGTERM', cleanUpAndExit);

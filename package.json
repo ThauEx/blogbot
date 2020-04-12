@@ -17,9 +17,9 @@
   },
   "homepage": "https://github.com/3ventic/blogbot#readme",
   "dependencies": {
-    "discord.js": "^8.0.0",
-    "feedparser": "^1.1.4",
+    "discord.js": "^12.1.1",
+    "feedparser": "^2.2.9",
     "request": "^2.72.0",
-    "sqlite3": "^3.1.4"
+    "sqlite3": "^4.1.1"
   }
 }
