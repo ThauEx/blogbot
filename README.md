@@ -8,4 +8,4 @@ Monitor RSS feeds and post new posts on Discord.
 
 ## Running your own instance
 
-Clone the repo, `npm install`, set environment variables CLIENTID and TOKEN (bot access token), and optionally PREFIX (command prefix, default !) and GAME (for the "playing" text) and run bot.js
+Clone the repo, `npm install`, set environment variable TOKEN (bot access token), and optionally PREFIX (command prefix, default !) and GAME (for the "playing" text) and run bot.js
