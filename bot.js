@@ -117,6 +117,7 @@ function requestBlogs(index) {
             requestBlogs(++index);
         } else {
             var posts = [];
+            var feedItems = [];
             var posted = false;
             rows.forEach(function (row) {
                 posts.push(row.post);
@@ -127,13 +128,24 @@ function requestBlogs(index) {
             req.on('error', errHandler);
             rss.on('error', errHandler);
             req.on('response', function (res) {
-                if (res.statusCode == 200) {
+                if (res.statusCode === 200) {
+                    feedItems = [];
                     this.pipe(rss);
                 }
             });
             rss.on('readable', function () {
                 var stream = this, item;
+                var added = false;
                 while (item = stream.read()) {
+                    if (added === false) {
+                        added = false;
+                        feedItems.push(item);
+                    }
+                }
+            });
+            rss.on('end', function () {
+                feedItems = feedItems.reverse();
+                for (var item of feedItems) {
                     if (posted === false && item.title && item.link && posts.indexOf(item.link) < 0) {
                         posted = true;
                         db.run("INSERT INTO history (url, post) VALUES (?, ?)", [toRequest[index].url, item.link], function (err) { if (err) errHandler(err); });
@@ -144,8 +156,7 @@ function requestBlogs(index) {
                         });
                     }
                 }
-            });
-            rss.on('end', function () {
+
                 requestBlogs(++index);
             });
         }
