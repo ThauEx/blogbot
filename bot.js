@@ -30,7 +30,7 @@ bot.on('message', function (message) {
     // Allow only users with permission to manage the channel to interact with the bot.
     if (message.channel.permissionsFor(message.author).has('MANAGE_CHANNELS')) {
         var words = message.cleanContent.match(/(?:[^\s"]+|"[^"]*")+/g);
-        if (words[0].startsWith(commandPrefix)) {
+        if (words && words[0] && words[0].startsWith(commandPrefix)) {
             var command = words[0].substring(commandPrefix.length);
             words.shift();
             switch (command) {
