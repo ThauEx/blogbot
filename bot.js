@@ -122,7 +122,7 @@ function requestBlogs(index) {
             rows.forEach(function (row) {
                 posts.push(row.post);
             });
-            console.log("Requesting ", toRequest[index].url);
+            console.log('[' + new Date().toUTCString() + '] ', "Requesting ", toRequest[index].url);
             var rss = new FeedParser({});
             var req = request(toRequest[index].url);
             req.on('error', errHandler);
@@ -150,7 +150,7 @@ function requestBlogs(index) {
                         posted = true;
                         db.run("INSERT INTO history (url, post) VALUES (?, ?)", [toRequest[index].url, item.link], function (err) { if (err) errHandler(err); });
                         toRequest[index].channels.forEach(function (channelId) {
-                            console.log("NEW THREAD", item.link);
+                            console.log('[' + new Date().toUTCString() + '] ', "NEW THREAD", item.link);
                             var channel = bot.channels.resolve(channelId);
                             channel.send("**NEW THREAD** " + item.title + " " + item.link);
                         });
@@ -191,7 +191,7 @@ function checkBlogs() {
                     url: url
                 });
             }
-            console.log(toRequest);
+            console.log('[' + new Date().toUTCString() + '] ', toRequest);
             requestBlogs(0);
         });
     }
