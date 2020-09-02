@@ -22,6 +22,9 @@ var bot = new Discord.Client({
     autoReconnect: true
 });
 
+var isRequesting = false;
+var toRequest = [];
+
 bot.on('ready', function () {
     checkBlogs();
 });
@@ -89,6 +92,7 @@ bot.on('warn', function (warn) {
 });
 
 function errHandler(error) {
+    isRequesting = false;
     console.error('ERROR', error);
 }
 
@@ -100,9 +104,6 @@ bot.login(process.env.TOKEN).catch(function (error) {
         process.exit(15);
     }
 });
-
-var isRequesting = false;
-var toRequest = [];
 
 function requestBlogs(index) {
     isRequesting = true;
